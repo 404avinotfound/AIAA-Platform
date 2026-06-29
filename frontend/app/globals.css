@@ -1,0 +1,108 @@
+@import url("https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700;800&family=Source+Sans+3:wght@400;500;600;700&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --navy: #0a1a33;
+  --navy-deep: #071227;
+  --gold: #c9a227;
+  --gold-light: #e8c766;
+  --cream: #faf8f1;
+  --ink: #1c1f26;
+  --maroon: #7a1f2b;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--cream);
+  color: var(--ink);
+  font-family: "Source Sans 3", "Inter", system-ui, sans-serif;
+}
+
+h1, h2, h3, h4, .font-display {
+  font-family: "Playfair Display", Georgia, serif;
+}
+
+/* Visible keyboard focus ring everywhere, per accessibility floor */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+/* Signature element: a laurel-leaf section divider, echoing the wreath in the
+   AIAA emblem. Used under section eyebrows instead of generic numbered markers. */
+.laurel-divider {
+  position: relative;
+  height: 14px;
+  width: 100%;
+  max-width: 220px;
+}
+.laurel-divider::before,
+.laurel-divider::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  width: 44%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--gold) 60%, var(--gold));
+}
+.laurel-divider::before {
+  left: 0;
+}
+.laurel-divider::after {
+  right: 0;
+  background: linear-gradient(90deg, var(--gold), var(--gold) 40%, transparent);
+}
+.laurel-divider .laurel-dot {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--gold);
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+
+.eyebrow {
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--gold-dim, #9c7e1e);
+}
+
+.btn-gold {
+  background: var(--gold);
+  color: var(--navy-deep);
+  font-weight: 600;
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+.btn-gold:hover {
+  background: var(--gold-light);
+}
+.btn-gold:active {
+  transform: translateY(1px);
+}
+
+.card-official {
+  background: #fff;
+  border: 1px solid rgba(10, 26, 51, 0.08);
+  box-shadow: 0 1px 3px rgba(10, 26, 51, 0.06), 0 8px 24px rgba(10, 26, 51, 0.05);
+}
