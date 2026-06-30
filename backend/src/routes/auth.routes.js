@@ -3,7 +3,7 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 const { requireAuth } = require("../middleware/auth");
-const { uploadImage } = require("../middleware/upload");
+const { uploadImage, fileUrl } = require("../middleware/upload");
 const { generateOtp, sendOtpEmail } = require("../services/email.service");
 
 const router = express.Router();
@@ -184,7 +184,7 @@ router.patch("/me", requireAuth, async (req, res, next) => {
 router.post("/me/avatar", requireAuth, uploadImage.single("avatar"), async (req, res, next) => {
   try {
     if (!req.file) return res.status(400).json({ message: "An image file is required" });
-    req.user.avatarUrl = `/uploads/${req.file.filename}`;
+    req.user.avatarUrl = fileUrl(req.file);
     await req.user.save();
     res.json({ user: req.user });
   } catch (err) {

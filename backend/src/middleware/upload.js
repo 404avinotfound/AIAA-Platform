@@ -2,16 +2,88 @@ const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
 
-const uploadDir = path.join(__dirname, "..", "..", "uploads");
-if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+// ---- Storage backend ----
+// Render's filesystem is ephemeral: anything written to disk disappears on
+// every restart/redeploy (and the free tier doesn't support persistent
+// disks at all). If Cloudinary credentials are present we upload there
+// instead, which is what production (Render) should be configured with.
+// Locally / without credentials we fall back to disk storage, which is
+// fine for development.
+const useCloudinary = !!(
+  process.env.CLOUDINARY_CLOUD_NAME &&
+  process.env.CLOUDINARY_API_KEY &&
+  process.env.CLOUDINARY_API_SECRET
+);
 
-const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => cb(null, uploadDir),
-  filename: (_req, file, cb) => {
-    const safeName = `${Date.now()}-${file.originalname.replace(/[^a-zA-Z0-9.\-_]/g, "_")}`;
-    cb(null, safeName);
-  },
-});
+let cloudinary;
+
+if (useCloudinary) {
+  cloudinary = require("cloudinary").v2;
+  cloudinary.config({
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET,
+  });
+}
+
+const uploadDir = path.join(__dirname, "..", "..", "uploads");
+if (!useCloudinary && !fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+
+function safeBaseName(originalname) {
+  return `${Date.now()}-${path.parse(originalname || "file").name.replace(/[^a-zA-Z0-9.\-_]/g, "_")}`;
+}
+
+// Minimal multer StorageEngine that streams the upload straight to
+// Cloudinary instead of disk. We avoid the `multer-storage-cloudinary`
+// package here since it pins an old cloudinary@1.x peer dependency that
+// conflicts with the current cloudinary SDK.
+class CloudinaryEngine {
+  _handleFile(_req, file, cb) {
+    const uploadStream = cloudinary.uploader.upload_stream(
+      { folder: "aiaa/uploads", resource_type: "auto", public_id: safeBaseName(file.originalname) },
+      (err, result) => {
+        if (err) return cb(err);
+        // Mirrors the shape multer's diskStorage produces (file.path,
+        // file.filename) so the rest of the app doesn't need to branch.
+        cb(null, { path: result.secure_url, filename: result.public_id, size: result.bytes });
+      }
+    );
+    file.stream.pipe(uploadStream);
+  }
+
+  _removeFile(_req, file, cb) {
+    if (!file.filename) return cb(null);
+    cloudinary.uploader.destroy(file.filename, { resource_type: "auto" }).then(() => cb(null), cb);
+  }
+}
+
+const storage = useCloudinary
+  ? new CloudinaryEngine()
+  : multer.diskStorage({
+      destination: (_req, _file, cb) => cb(null, uploadDir),
+      filename: (_req, file, cb) => cb(null, safeBaseName(file.originalname) + path.extname(file.originalname || "")),
+    });
+
+// Resolves the public URL for an uploaded file regardless of backend:
+// - Cloudinary: multer-storage-cloudinary sets file.path to the secure URL already.
+// - Local disk: returns a path relative to this server; the frontend's
+//   mediaUrl() helper (lib/api.js) prefixes it with the API origin.
+function fileUrl(file) {
+  if (!file) return undefined;
+  return useCloudinary ? file.path : `/uploads/${file.filename}`;
+}
+
+// Deletes a previously-uploaded file from whichever backend stored it.
+// Used when a file fails post-upload validation (e.g. membership file
+// size re-check) and needs to be cleaned up immediately.
+function deleteUploadedFile(file) {
+  if (!file) return;
+  if (useCloudinary) {
+    if (file.filename) cloudinary.uploader.destroy(file.filename, { resource_type: "auto" }).catch(() => {});
+  } else if (file.path) {
+    fs.unlink(file.path, () => {});
+  }
+}
 
 // ---- Size limits (requested) ----
 // Profile photo / passport-size photo / signature image: max 100KB
@@ -63,7 +135,7 @@ const uploadDocument = multer({
 // (Govt ID, Advocate ID, Enrollment Certificate). Multer only supports one
 // fileSize limit per instance, so we use the larger ceiling (250KB) here and
 // strictly re-check each field's real limit in enforceMembershipFileSizes,
-// below, once the files have actually been written to disk.
+// below, once the files have actually been uploaded.
 const MEMBERSHIP_IMAGE_FIELDS = ["profilePhoto", "signature"];
 const MEMBERSHIP_DOCUMENT_FIELDS = ["govtId", "advocateId", "enrollmentCertificate"];
 
@@ -90,22 +162,22 @@ const uploadMembershipFiles = multer({
 // Runs after uploadMembershipFiles. Multer's fileFilter can't see a file's
 // final size while it's still streaming in, so image fields (capped at
 // 100KB) could otherwise slip through under the shared 250KB instance
-// ceiling. This re-checks each field's real size on disk and rejects (and
-// deletes) anything that's too big for its specific field.
+// ceiling. This re-checks each field's real size and rejects (and deletes)
+// anything that's too big for its specific field.
 function enforceMembershipFileSizes(req, res, next) {
   const files = req.files || {};
 
   for (const field of MEMBERSHIP_IMAGE_FIELDS) {
     const uploaded = files[field]?.[0];
     if (uploaded && uploaded.size > IMAGE_MAX_BYTES) {
-      fs.unlink(uploaded.path, () => {});
+      deleteUploadedFile(uploaded);
       return res.status(400).json({ message: `${field}: image must be 100KB or smaller.` });
     }
   }
   for (const field of MEMBERSHIP_DOCUMENT_FIELDS) {
     const uploaded = files[field]?.[0];
     if (uploaded && uploaded.size > DOCUMENT_MAX_BYTES) {
-      fs.unlink(uploaded.path, () => {});
+      deleteUploadedFile(uploaded);
       return res.status(400).json({ message: `${field}: PDF must be 250KB or smaller.` });
     }
   }
@@ -142,6 +214,8 @@ module.exports = {
   uploadMembershipFiles,
   enforceMembershipFileSizes,
   uploadGeneral,
+  fileUrl,
   IMAGE_MAX_BYTES,
   DOCUMENT_MAX_BYTES,
+  isUsingCloudinary: useCloudinary,
 };

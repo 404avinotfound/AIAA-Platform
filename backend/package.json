@@ -4,6 +4,9 @@
   "description": "Backend API for All India Advocates Associations (AIAA)",
   "main": "server.js",
   "type": "commonjs",
+  "engines": {
+    "node": ">=20.0.0"
+  },
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js",
@@ -12,6 +15,7 @@
   "dependencies": {
     "axios": "^1.7.7",
     "bcryptjs": "^2.4.3",
+    "cloudinary": "^2.5.1",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",

@@ -4,7 +4,7 @@ const Answer = require("../models/Answer");
 const Member = require("../models/Member");
 const { requireAuth, optionalAuth } = require("../middleware/auth");
 const { requireRole, requireActiveMember } = require("../middleware/role");
-const { uploadGeneral } = require("../middleware/upload");
+const { uploadGeneral, fileUrl } = require("../middleware/upload");
 
 const router = express.Router();
 
@@ -49,7 +49,7 @@ router.post("/questions", requireAuth, uploadGeneral.array("attachments", 5), as
   try {
     const { title, body, tags, isAnonymous } = req.body;
     const attachments = (req.files || []).map((f) => ({
-      url: `/uploads/${f.filename}`,
+      url: fileUrl(f),
       fileName: f.originalname,
       fileType: f.mimetype,
     }));
@@ -114,7 +114,7 @@ router.post(
       if (!question) return res.status(404).json({ message: "Question not found" });
 
       const attachments = (req.files || []).map((f) => ({
-        url: `/uploads/${f.filename}`,
+        url: fileUrl(f),
         fileName: f.originalname,
         fileType: f.mimetype,
       }));

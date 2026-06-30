@@ -3,7 +3,7 @@ const Document = require("../models/Document");
 const Member = require("../models/Member");
 const { requireAuth, optionalAuth } = require("../middleware/auth");
 const { requireRole } = require("../middleware/role");
-const { uploadDocument } = require("../middleware/upload");
+const { uploadDocument, fileUrl } = require("../middleware/upload");
 
 const router = express.Router();
 
@@ -51,7 +51,7 @@ router.post(
         category: req.body.category,
         isPinned: req.body.isPinned === "true",
         membersOnly: req.body.membersOnly === "true" || req.body.membersOnly === true,
-        fileUrl: `/uploads/${req.file.filename}`,
+        fileUrl: fileUrl(req.file),
         fileType: req.file.mimetype,
         uploadedBy: req.user._id,
       });

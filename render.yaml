@@ -1,0 +1,58 @@
+services:
+  - type: web
+    name: aiaa-backend
+    runtime: node
+    rootDir: backend
+    plan: free
+    buildCommand: npm install
+    startCommand: node server.js
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # Set this to your Vercel frontend URL(s) after the first deploy,
+      # comma-separated if you also want to allow Vercel preview URLs, e.g.
+      # https://aiaa.vercel.app,https://aiaa-platform-git-main-you.vercel.app
+      - key: CLIENT_URL
+        sync: false
+      - key: MONGO_URI
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      - key: JWT_EXPIRES_IN
+        value: 15m
+      - key: JWT_REFRESH_EXPIRES_IN
+        value: 30d
+      - key: RAZORPAY_KEY_ID
+        sync: false
+      - key: RAZORPAY_KEY_SECRET
+        sync: false
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        sync: false
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: EMAIL_FROM
+        sync: false
+      - key: NCS_API_URL
+        value: https://betacloud.ncs.gov.in/api/v1/job-posts/search
+      - key: JOB_SYNC_CRON
+        value: "0 */6 * * *"
+      # Optional but strongly recommended: without these, uploaded files
+      # (profile photos, membership documents) are written to Render's local
+      # disk, which is wiped on every restart/redeploy. See README.md.
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false

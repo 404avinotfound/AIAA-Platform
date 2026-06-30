@@ -28,14 +28,40 @@ const adminRoutes = require("./src/routes/admin.routes");
 const app = express();
 const server = http.createServer(app);
 
+// ---- CORS origins ----
+// CLIENT_URL can be a single URL or a comma-separated list, which matters
+// once the frontend is on Vercel: production gets a stable domain, but
+// every branch/PR also gets its own preview URL. Add each one you need
+// (production + any preview domains) to CLIENT_URL, comma-separated.
+const allowedOrigins = (process.env.CLIENT_URL || "http://localhost:3000")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+function corsOriginCheck(origin, callback) {
+  // Allow non-browser requests (curl, server-to-server, health checks) which
+  // have no Origin header at all.
+  if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
+  callback(new Error(`Origin ${origin} is not allowed by CORS`));
+}
+
 const io = new Server(server, {
-  cors: { origin: process.env.CLIENT_URL || "http://localhost:3000" },
+  cors: { origin: allowedOrigins, credentials: true },
 });
 app.set("io", io);
 
+// Render (and most PaaS platforms) sit behind a reverse proxy. Without this,
+// express-rate-limit and req.ip / req.secure see the proxy's IP instead of
+// the real client's, which breaks rate limiting and secure-cookie checks.
+app.set("trust proxy", 1);
+
 // ---- Security & core middleware ----
-app.use(helmet());
-app.use(cors({ origin: process.env.CLIENT_URL || "http://localhost:3000", credentials: true }));
+// crossOriginResourcePolicy must allow "cross-origin": the frontend (Vercel)
+// and this API (Render) live on different domains, and helmet's default
+// "same-origin" policy would otherwise block the browser from loading
+// uploaded images/PDFs served from /uploads.
+app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
+app.use(cors({ origin: corsOriginCheck, credentials: true }));
 app.use(express.json({ limit: "5mb" }));
 app.use(express.urlencoded({ extended: true }));
 app.use(xssClean());

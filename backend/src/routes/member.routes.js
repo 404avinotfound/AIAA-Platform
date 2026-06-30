@@ -2,7 +2,7 @@ const express = require("express");
 const Member = require("../models/Member");
 const { requireAuth } = require("../middleware/auth");
 const { requireRole } = require("../middleware/role");
-const { uploadMembershipFiles, enforceMembershipFileSizes } = require("../middleware/upload");
+const { uploadMembershipFiles, enforceMembershipFileSizes, fileUrl: getFileUrl } = require("../middleware/upload");
 
 const router = express.Router();
 
@@ -26,7 +26,7 @@ router.post(
       }
 
       const files = req.files || {};
-      const fileUrl = (field) => (files[field]?.[0] ? `/uploads/${files[field][0].filename}` : undefined);
+      const fileUrl = (field) => getFileUrl(files[field]?.[0]);
 
       const payload = {
         membershipType: req.body.membershipType,
