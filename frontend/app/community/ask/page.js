@@ -8,6 +8,39 @@ import { api } from "../../../lib/api";
 import { useAuth } from "../../../lib/AuthContext";
 import { Paperclip, Lock } from "lucide-react";
 
+function validateText(text, maxWords) {
+    // Remove extra spaces at the beginning/end
+    const trimmed = text.trim();
+
+    // If the textbox is empty, don't show an error.
+    if (trimmed === "") {
+        return null;
+    }
+
+    // Split the text into individual words.
+    // Example:
+    // "Hello world how are you"
+    // becomes
+    // ["Hello", "world", "how", "are", "you"]
+    const words = trimmed.split(/\s+/);
+
+    // Check the total number of words.
+    if (words.length > maxWords) {
+        return `Maximum ${maxWords} words allowed.`;
+    }
+
+    // Check each individual word.
+    for (const word of words) {
+        if (word.length > 30) {
+            return "A single word cannot exceed 30 characters.";
+        }
+    }
+
+    // Everything is valid.
+    return null;
+}
+
+
 export default function AskQuestionPage() {
   const router = useRouter();
   const { user, loading } = useAuth();
@@ -22,7 +55,21 @@ export default function AskQuestionPage() {
   async function handleSubmit(e) {
     e.preventDefault();
     setError("");
+
+    const error1 = validateText(title, 30);
+    if (error1) {
+      setError(`Title: ${error1}`);
+      return;
+    }
+
+    const error2 = validateText(body, 300);
+    if (error2) {
+      setError(`Body: ${error2}`);
+      return;
+    }
+
     setSubmitting(true);
+    
     try {
       const fd = new FormData();
       fd.append("title", title);
@@ -40,6 +87,34 @@ export default function AskQuestionPage() {
     } finally {
       setSubmitting(false);
     }
+  }
+
+  function handleTitleChange(e) {
+    const newTitle = e.target.value;
+
+    const error = validateText(newTitle, 30);
+
+    if (error) {
+        setError(`Title: ${error}`);
+        return;
+    }
+
+    setError("");
+    setTitle(newTitle);
+  }
+
+  function handleBodyChange(e) {
+    const newBody = e.target.value;
+
+    const error = validateText(newBody, 300);
+
+    if (error) {
+        setError(`Body: ${error}`);
+        return;
+    }
+
+    setError("");
+    setBody(newBody);
   }
 
   if (loading) {
@@ -76,7 +151,7 @@ export default function AskQuestionPage() {
           <input
             required
             value={title}
-            onChange={(e) => setTitle(e.target.value)}
+            onChange={handleTitleChange}
             placeholder="Summarise your legal question in one line"
             className="w-full rounded-md border border-ink/15 px-3 py-2 text-sm"
           />
@@ -88,7 +163,7 @@ export default function AskQuestionPage() {
             required
             rows={6}
             value={body}
-            onChange={(e) => setBody(e.target.value)}
+            onChange={handleBodyChange}
             placeholder="Describe your situation, relevant facts, and what you'd like to know"
             className="w-full rounded-md border border-ink/15 px-3 py-2 text-sm"
           />
